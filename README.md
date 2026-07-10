@@ -20,6 +20,9 @@ Length-prefixed framed protocol: `[PREAMBLE:2B][SRC:1B][DST:1B][TYPE:1B][SEQ:2B]
 - **Tier 3 SUPERVISORY**: Heartbeat monitoring, state machine (<100ms)
 - **Tier 4 APPLICATION**: Bytecode validation, trust-gated autonomy (<1s)
 
+### Self-Healing (`src/safety/self_healing.py`) — 11.4K chars
+Component health monitoring with heartbeat timeouts and error-count tracking, fault classification into WARNING/MINOR/MAJOR/CRITICAL, and recovery-strategy selection (restart, backup switch, reduce load, safe mode, escalate). Includes graceful degradation assessment that maps fleet-wide health to capability levels.
+
 ### Intent Compiler (`src/reflex/compiler.py`) — 14.8K chars
 NL intent → IR → bytecode pipeline. Parses action + target + value + condition. Supports: maintain, navigate, monitor (conditional), alert.
 
@@ -31,6 +34,9 @@ Bayesian sensor fusion with inverse-variance weighting. Trust-weighted consensus
 
 ### Digital Twin (`src/digital_twin/twin.py`) — 8.8K chars
 Real-time state mirroring with configurable history buffer. Forward predictive simulation (kinematics + power model). Anomaly detection with baseline learning (z-score). Battery life estimation.
+
+### Navigation (`src/navigation/path.py`) — 9.1K chars
+Pose and Waypoint dataclasses with dead-reckoning position estimation, sequential waypoint following with per-waypoint arrival tolerance, desired heading/speed computation, and simple potential-field obstacle avoidance.
 
 ## Architecture
 
@@ -54,7 +60,6 @@ Covers the same architectural patterns as [nexus-runtime](https://github.com/Sup
 
 ## Next: Additional Modules
 
-- `src/navigation/` — dead reckoning, waypoint following, obstacle avoidance
 - `src/mission/` — mission planning, execution monitoring, contingency
 - `src/energy/` — power management, solar/recharge, budget allocation
 - `src/maintenance/` — predictive maintenance, diagnostic scheduling
