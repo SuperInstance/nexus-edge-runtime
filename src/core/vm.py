@@ -295,7 +295,7 @@ class Assembler:
                         if val in labels:
                             arg16 = labels[val]
 
-            bytecode.extend(struct.pack('<BBHi', opcode, arg8, arg16, imm32 & 0xFFFFFFFF))
+            bytecode.extend(struct.pack('<BBHi', opcode, arg8, arg16, imm32))
             instr_idx += 1
 
         # Fixup jumps
