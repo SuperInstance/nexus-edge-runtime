@@ -29,7 +29,7 @@ class MessageType(enum.IntEnum):
 
 
 PREAMBLE = bytes([0xAA, 0x55])
-HEADER_SIZE = 11
+HEADER_SIZE = 9
 CRC_SIZE = 2
 MAX_PAYLOAD = 512
 
@@ -95,14 +95,14 @@ class WireProtocol:
         crc_received = struct.unpack_from('<H', data, len(data) - CRC_SIZE)[0]
         if not CRC16.verify(body, crc_received):
             return None
-        if len(body) < 9:
+        if len(body) < 7:
             return None
         src = body[0]
         dst = body[1]
         msg_type = MessageType(body[2])
         seq = struct.unpack_from('<H', body, 3)[0]
         payload_len = struct.unpack_from('<H', body, 5)[0]
-        payload = body[9:9 + payload_len]
+        payload = body[7:7 + payload_len]
         return Message(msg_type, src, dst, seq, payload)
 
     def build_heartbeat(self, dst: int = 0) -> bytes:
