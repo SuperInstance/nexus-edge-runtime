@@ -88,6 +88,23 @@ Covers the same architectural patterns as [nexus-runtime](https://github.com/Sup
 - `src/autonomy/` — adaptive autonomy, self-healing, reflex override
 - `src/hardware/` — 11+ platform profiles (ESP32, Jetson, Pi, etc.)
 
+## Related repos
+
+Part of the Cocapn fleet. Siblings with a real conceptual overlap:
+
+- **[Edge-Native](https://github.com/SuperInstance/Edge-Native)** — the
+  specification repository; this runtime implements its opcodes, wire frames,
+  and trust/safety model on the Jetson side.
+- **[nexus-runtime](https://github.com/SuperInstance/nexus-runtime)** — the
+  companion runtime (compared above); shares the same architectural patterns.
+- **[edge-relay-agent](https://github.com/SuperInstance/edge-relay-agent)** —
+  cloud↔edge relay; models the asymmetric message flow this runtime consumes.
+- **[marine-gpu-edge](https://github.com/SuperInstance/marine-gpu-edge)** —
+  GPU-accelerated counterpart to this runtime's `perception/fusion.py`
+  sensor-fusion module.
+- **[edge-equipment-catalog](https://github.com/SuperInstance/edge-equipment-catalog)**
+  — profiles the ESP32 / Jetson hardware this runtime deploys to.
+
 ## License
 
 MIT — DiGennaro et al. (SuperInstance & Lucineer)
