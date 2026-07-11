@@ -30,8 +30,8 @@ class Opcode(enum.IntEnum):
     AND_B = 0x16; OR_B = 0x17; XOR_B = 0x18; NOT_B = 0x19
     # I/O (0x1A-0x1C)
     READ_PIN = 0x1A; WRITE_PIN = 0x1B; READ_TIMER_MS = 0x1C
-    # Control (0x1D-0x1F)
-    JUMP = 0x1D; JUMP_IF_FALSE = 0x1E; JUMP_IF_TRUE = 0x1F
+    # Control (0x1D-0x20)
+    JUMP = 0x1D; JUMP_IF_FALSE = 0x1E; JUMP_IF_TRUE = 0x1F; HALT = 0x20
 
 OPCODE_NAMES = {op.value: op.name for op in Opcode}
 
@@ -219,6 +219,12 @@ class BytecodeVM:
             v = self._pop()
             if v != 0.0:
                 s.pc = arg16 * self.INSTR_SIZE
+        elif op == Opcode.HALT:
+            # Clean termination: set halted flag and signal stop.
+            # PC has already been advanced past this instruction, so it
+            # points at the instruction that would execute on resume.
+            s.halted = True
+            return False
         else:
             raise VMError(f"Unknown opcode: 0x{op:02X} at PC={s.pc - self.INSTR_SIZE}")
         return True
