@@ -4,8 +4,21 @@ Edge runtime for autonomous agents in the Cocapn fleet — generalized beyond ma
 
 ## Core Modules
 
-### Bytecode VM (`src/core/vm.py`) — 14.5K chars
-32-opcode stack-based VM: 8-byte instructions, 32 registers (16 GP + 16 IO-mapped), 64KB memory, 1024-deep stack. Assembler, disassembler, bytecode validator. ESP32-S3 deployment + Jetson supervision.
+### Bytecode VM (`src/core/vm.py`) — 15.0K chars
+33-opcode stack-based VM: 8-byte instructions, 32 registers (16 GP + 16 IO-mapped), 64KB memory, 1024-deep stack. Assembler, disassembler, bytecode validator. ESP32-S3 deployment + Jetson supervision.
+
+**Opcode table:**
+
+| Range | Group | Opcodes |
+|-------|-------|---------|
+| 0x00–0x07 | Stack | NOP, PUSH_I8, PUSH_I16, PUSH_F32, POP, DUP, SWAP, ROT |
+| 0x08–0x10 | Arithmetic | ADD_F, SUB_F, MUL_F, DIV_F, NEG_F, ABS_F, MIN_F, MAX_F, CLAMP_F |
+| 0x11–0x15 | Compare | EQ_F, LT_F, GT_F, LTE_F, GTE_F |
+| 0x16–0x19 | Logic | AND_B, OR_B, XOR_B, NOT_B |
+| 0x1A–0x1C | I/O | READ_PIN, WRITE_PIN, READ_TIMER_MS |
+| 0x1D–0x20 | Control | JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE, HALT |
+
+`HALT` (0x20) cleanly terminates execution by setting `state.halted = True` — no `VMError` raised. Programs without an explicit `HALT` still terminate safely via the PC-out-of-bounds check (`max_cycles`-bounded).
 
 ### INCREMENTS Trust Engine (`src/trust/engine.py`) — 10.4K chars
 Multi-dimensional trust: history (EMA), capability, latency, consistency. Composite scoring with configurable weights. Autonomy levels L0-L5. Transitive trust propagation. Trust decay.
