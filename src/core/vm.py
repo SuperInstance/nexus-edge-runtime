@@ -362,10 +362,10 @@ class Validator:
                 errors.append(f"Invalid opcode 0x{op:02X} at instruction {addr}")
             seen_ops.add(op)
 
-        # Check for HALT-like termination (should end with JUMP or reach end)
+        # Check for HALT-like termination (should end with JUMP, HALT, or reach end)
         last_op = bytecode[-8]
         if last_op not in (Opcode.JUMP, Opcode.JUMP_IF_FALSE, Opcode.JUMP_IF_TRUE,
-                          Opcode.NOP, Opcode.WRITE_PIN, Opcode.POP):
+                          Opcode.NOP, Opcode.WRITE_PIN, Opcode.POP, Opcode.HALT):
             pass  # Not necessarily an error
 
         return len(errors) == 0, errors
