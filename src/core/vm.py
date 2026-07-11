@@ -334,6 +334,8 @@ class Assembler:
                 lines.append(f"{addr:4d}: {name} @{arg16}")
             elif op == Opcode.NOP:
                 lines.append(f"{addr:4d}: NOP")
+            elif op == Opcode.HALT:
+                lines.append(f"{addr:4d}: HALT")
             else:
                 lines.append(f"{addr:4d}: {name}")
 
