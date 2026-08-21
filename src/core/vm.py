@@ -30,8 +30,8 @@ class Opcode(enum.IntEnum):
     AND_B = 0x16; OR_B = 0x17; XOR_B = 0x18; NOT_B = 0x19
     # I/O (0x1A-0x1C)
     READ_PIN = 0x1A; WRITE_PIN = 0x1B; READ_TIMER_MS = 0x1C
-    # Control (0x1D-0x1F)
-    JUMP = 0x1D; JUMP_IF_FALSE = 0x1E; JUMP_IF_TRUE = 0x1F
+    # Control (0x1D-0x20)
+    JUMP = 0x1D; JUMP_IF_FALSE = 0x1E; JUMP_IF_TRUE = 0x1F; HALT = 0x20
 
 OPCODE_NAMES = {op.value: op.name for op in Opcode}
 
@@ -219,6 +219,12 @@ class BytecodeVM:
             v = self._pop()
             if v != 0.0:
                 s.pc = arg16 * self.INSTR_SIZE
+        elif op == Opcode.HALT:
+            # Clean termination: set halted flag and signal stop.
+            # PC has already been advanced past this instruction, so it
+            # points at the instruction that would execute on resume.
+            s.halted = True
+            return False
         else:
             raise VMError(f"Unknown opcode: 0x{op:02X} at PC={s.pc - self.INSTR_SIZE}")
         return True
@@ -295,7 +301,7 @@ class Assembler:
                         if val in labels:
                             arg16 = labels[val]
 
-            bytecode.extend(struct.pack('<BBHi', opcode, arg8, arg16, imm32 & 0xFFFFFFFF))
+            bytecode.extend(struct.pack('<BBHi', opcode, arg8, arg16, imm32))
             instr_idx += 1
 
         # Fixup jumps
@@ -328,6 +334,8 @@ class Assembler:
                 lines.append(f"{addr:4d}: {name} @{arg16}")
             elif op == Opcode.NOP:
                 lines.append(f"{addr:4d}: NOP")
+            elif op == Opcode.HALT:
+                lines.append(f"{addr:4d}: HALT")
             else:
                 lines.append(f"{addr:4d}: {name}")
 
@@ -354,10 +362,10 @@ class Validator:
                 errors.append(f"Invalid opcode 0x{op:02X} at instruction {addr}")
             seen_ops.add(op)
 
-        # Check for HALT-like termination (should end with JUMP or reach end)
+        # Check for HALT-like termination (should end with JUMP, HALT, or reach end)
         last_op = bytecode[-8]
         if last_op not in (Opcode.JUMP, Opcode.JUMP_IF_FALSE, Opcode.JUMP_IF_TRUE,
-                          Opcode.NOP, Opcode.WRITE_PIN, Opcode.POP):
+                          Opcode.NOP, Opcode.WRITE_PIN, Opcode.POP, Opcode.HALT):
             pass  # Not necessarily an error
 
         return len(errors) == 0, errors

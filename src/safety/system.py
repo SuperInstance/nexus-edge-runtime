@@ -17,6 +17,8 @@ import enum, time, math
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Callable, Tuple
 
+from core.vm import Opcode
+
 
 class SafetyTier(enum.IntEnum):
     HARDWARE = 1
@@ -180,17 +182,25 @@ class ApplicationSafety:
 
     def validate_bytecode(self, bytecode: bytes) -> Tuple[bool, List[SafetyViolation]]:
         errors = []
+        if len(bytecode) == 0:
+            errors.append(SafetyViolation(
+                SafetyTier.APPLICATION, "empty_bytecode",
+                "Empty bytecode - no instructions"))
+            return False, errors
         if len(bytecode) > self.config.max_bytecode_size:
             errors.append(SafetyViolation(SafetyTier.APPLICATION, "bytecode_too_large",
                 f"Bytecode {len(bytecode)}B exceeds max {self.config.max_bytecode_size}B"))
         if len(bytecode) % 8 != 0:
             errors.append(SafetyViolation(SafetyTier.APPLICATION, "bytecode_misaligned",
                 f"Bytecode length {len(bytecode)} not multiple of 8"))
-        # Check for valid opcodes
-        valid_ops = set(range(0x20))  # 0x00-0x1F
+        # Check for valid opcodes. The canonical set is derived from the VM's
+        # Opcode enum so the safety gate can never drift out of sync with what
+        # the VM can actually execute (it previously accepted 0x21, which the
+        # VM rejects at runtime with VMError).
+        valid_ops = {op.value for op in Opcode}
         for i in range(0, min(len(bytecode), 8192), 8):
             op = bytecode[i]
-            if op not in valid_ops and op != 0x20 and op != 0x21:
+            if op not in valid_ops:
                 errors.append(SafetyViolation(SafetyTier.APPLICATION, "invalid_opcode",
                     f"Opcode 0x{op:02X} at instruction {i//8}"))
                 if len(errors) > 5:
