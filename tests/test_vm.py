@@ -253,3 +253,163 @@ class TestValidator:
         ok, errs = Validator().validate(bc)
         assert ok is False
         assert any("Invalid opcode" in e for e in errs)
+
+
+class TestHalt:
+    """Tests for the HALT opcode (0x20) — clean VM termination."""
+
+    def test_halt_basic(self):
+        """HALT sets state.halted=True without raising VMError."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("PUSH_F32 42.0\nHALT"))
+        state = vm.run(max_cycles=10)
+        assert state.halted is True
+        assert state.stack == [42.0]
+
+    def test_halt_pc_position(self):
+        """After HALT, PC points past the HALT instruction (resume position)."""
+        vm = BytecodeVM()
+        # [0] PUSH_F32 1.0, [1] HALT
+        vm.load(Assembler().assemble("PUSH_F32 1.0\nHALT"))
+        state = vm.run(max_cycles=10)
+        assert state.pc == 2 * 8  # past HALT at instruction index 1
+
+    def test_halt_cycles(self):
+        """HALT counts as one executed cycle."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("PUSH_F32 1.0\nHALT"))
+        state = vm.run(max_cycles=10)
+        assert state.cycles == 2  # PUSH + HALT
+
+    def test_halt_preserves_stack(self):
+        """HALT does not modify the stack — computation results are preserved."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble(
+            "PUSH_F32 10.0\nPUSH_F32 20.0\nADD_F\nHALT"))
+        state = vm.run(max_cycles=10)
+        assert state.halted is True
+        assert state.stack == [30.0]
+
+    def test_halt_first_instruction(self):
+        """HALT as the very first instruction stops immediately."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("HALT"))
+        state = vm.run(max_cycles=10)
+        assert state.halted is True
+        assert state.cycles == 1
+        assert state.pc == 8  # past the single HALT instruction
+        assert state.stack == []
+
+    def test_step_returns_false_on_halt(self):
+        """step() returns False when HALT is executed (signals stop)."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("HALT"))
+        result = vm.step()
+        assert result is False
+        assert vm.state.halted is True
+
+    def test_step_after_halt_is_noop(self):
+        """After halted, step() returns False without executing or advancing PC."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("HALT"))
+        vm.run(max_cycles=10)
+        pc_before = vm.state.pc
+        cycles_before = vm.state.cycles
+        result = vm.step()
+        assert result is False
+        assert vm.state.pc == pc_before      # PC unchanged
+        assert vm.state.cycles == cycles_before  # cycles unchanged
+
+    def test_halt_no_vmerror(self):
+        """HALT does not raise VMError — it's a clean termination path."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("HALT"))
+        state = vm.run(max_cycles=10)
+        assert state.halted is True
+
+    def test_halt_in_loop(self):
+        """HALT terminates a countdown loop — verify exact cycle count, PC, and stack."""
+        vm = BytecodeVM()
+        # Countdown from 3: subtract 1 each iteration, HALT when zero
+        # [0] PUSH_F32 3.0
+        # [1] loop:  PUSH_F32 1.0
+        # [2]         SUB_F
+        # [3]         DUP
+        # [4]         JUMP_IF_FALSE halt   ; if counter == 0, exit
+        # [5]         JUMP loop
+        # [6] halt:  HALT
+        source = """
+        PUSH_F32 3.0
+        loop:
+        PUSH_F32 1.0
+        SUB_F
+        DUP
+        JUMP_IF_FALSE halt
+        JUMP loop
+        halt:
+        HALT
+        """
+        vm.load(Assembler().assemble(source))
+        state = vm.run(max_cycles=100)
+        assert state.halted is True
+        assert state.stack == [0.0]   # counter reached 0
+        assert state.cycles == 16     # 3 iterations + HALT
+        assert state.pc == 7 * 8      # HALT at instruction 6, PC past it
+
+    def test_halt_assembler_mnemonic(self):
+        """Assembler produces correct opcode 0x20 for HALT mnemonic."""
+        bc = Assembler().assemble("HALT")
+        assert len(bc) == 8
+        assert bc[0] == Opcode.HALT
+        assert bc[0] == 0x20
+
+    def test_halt_disassembler(self):
+        """Disassembler prints HALT correctly."""
+        asm = Assembler()
+        bc = asm.assemble("PUSH_F32 1.0\nHALT")
+        lines = asm.disassemble(bc).splitlines()
+        assert "HALT" in lines[1]
+
+    def test_halt_opcode_value(self):
+        """HALT opcode value is 0x20 — next free after Control group 0x1D-0x1F."""
+        assert Opcode.HALT == 0x20
+
+    def test_halt_does_not_consume_stack(self):
+        """HALT takes no operands and does not pop from the stack."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble(
+            "PUSH_F32 1.0\nPUSH_F32 2.0\nPUSH_F32 3.0\nHALT"))
+        state = vm.run(max_cycles=10)
+        assert state.halted is True
+        assert state.stack == [1.0, 2.0, 3.0]
+
+
+class TestFallOffEnd:
+    """Confirm the existing PC-out-of-bounds safety net still works
+    for programs that don't explicitly HALT."""
+
+    def test_falls_off_end_raises_vmerror(self):
+        """A program without HALT eventually runs off the end of memory → VMError."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble("PUSH_F32 1.0"))
+        # 64KB memory / 8 bytes = 8192 instruction slots.
+        # After the PUSH, remaining slots are NOP (0x00) until PC exceeds MEM_SIZE.
+        with pytest.raises(VMError, match="PC out of bounds"):
+            vm.run(max_cycles=10000)
+
+    def test_falls_off_end_after_computation(self):
+        """A computation program without HALT still raises VMError."""
+        vm = BytecodeVM()
+        vm.load(Assembler().assemble(
+            "PUSH_F32 10.0\nPUSH_F32 20.0\nADD_F"))
+        with pytest.raises(VMError, match="PC out of bounds"):
+            vm.run(max_cycles=10000)
+
+    def test_max_cycles_safety_net(self):
+        """Without HALT, max_cycles bounds execution — no error, halted stays False."""
+        vm = BytecodeVM()
+        # Infinite loop: JUMP to self
+        vm.load(Assembler().assemble("JUMP 0"))
+        state = vm.run(max_cycles=50)
+        assert state.halted is False
+        assert state.cycles == 50

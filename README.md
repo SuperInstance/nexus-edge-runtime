@@ -4,8 +4,21 @@ Edge runtime for autonomous agents in the Cocapn fleet — generalized beyond ma
 
 ## Core Modules
 
-### Bytecode VM (`src/core/vm.py`) — 14.5K chars
-32-opcode stack-based VM: 8-byte instructions, 32 registers (16 GP + 16 IO-mapped), 64KB memory, 1024-deep stack. Assembler, disassembler, bytecode validator. ESP32-S3 deployment + Jetson supervision.
+### Bytecode VM (`src/core/vm.py`) — 15.0K chars
+33-opcode stack-based VM: 8-byte instructions, 32 registers (16 GP + 16 IO-mapped), 64KB memory, 1024-deep stack. Assembler, disassembler, bytecode validator. ESP32-S3 deployment + Jetson supervision.
+
+**Opcode table:**
+
+| Range | Group | Opcodes |
+|-------|-------|---------|
+| 0x00–0x07 | Stack | NOP, PUSH_I8, PUSH_I16, PUSH_F32, POP, DUP, SWAP, ROT |
+| 0x08–0x10 | Arithmetic | ADD_F, SUB_F, MUL_F, DIV_F, NEG_F, ABS_F, MIN_F, MAX_F, CLAMP_F |
+| 0x11–0x15 | Compare | EQ_F, LT_F, GT_F, LTE_F, GTE_F |
+| 0x16–0x19 | Logic | AND_B, OR_B, XOR_B, NOT_B |
+| 0x1A–0x1C | I/O | READ_PIN, WRITE_PIN, READ_TIMER_MS |
+| 0x1D–0x20 | Control | JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE, HALT |
+
+`HALT` (0x20) cleanly terminates execution by setting `state.halted = True` — no `VMError` raised. Programs without an explicit `HALT` still terminate safely via the PC-out-of-bounds check (`max_cycles`-bounded).
 
 ### INCREMENTS Trust Engine (`src/trust/engine.py`) — 10.4K chars
 Multi-dimensional trust: history (EMA), capability, latency, consistency. Composite scoring with configurable weights. Autonomy levels L0-L5. Transitive trust propagation. Trust decay.
@@ -74,6 +87,23 @@ Covers the same architectural patterns as [nexus-runtime](https://github.com/Sup
 - `src/swarm/` — swarm behaviors, emergence detection, consensus
 - `src/autonomy/` — adaptive autonomy, self-healing, reflex override
 - `src/hardware/` — 11+ platform profiles (ESP32, Jetson, Pi, etc.)
+
+## Related repos
+
+Part of the Cocapn fleet. Siblings with a real conceptual overlap:
+
+- **[Edge-Native](https://github.com/SuperInstance/Edge-Native)** — the
+  specification repository; this runtime implements its opcodes, wire frames,
+  and trust/safety model on the Jetson side.
+- **[nexus-runtime](https://github.com/SuperInstance/nexus-runtime)** — the
+  companion runtime (compared above); shares the same architectural patterns.
+- **[edge-relay-agent](https://github.com/SuperInstance/edge-relay-agent)** —
+  cloud↔edge relay; models the asymmetric message flow this runtime consumes.
+- **[marine-gpu-edge](https://github.com/SuperInstance/marine-gpu-edge)** —
+  GPU-accelerated counterpart to this runtime's `perception/fusion.py`
+  sensor-fusion module.
+- **[edge-equipment-catalog](https://github.com/SuperInstance/edge-equipment-catalog)**
+  — profiles the ESP32 / Jetson hardware this runtime deploys to.
 
 ## License
 
